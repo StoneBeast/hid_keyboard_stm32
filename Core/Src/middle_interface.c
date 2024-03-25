@@ -77,10 +77,10 @@ uint8_t* get_key_buffer()
 void HAL_IncTick(void)
 {
   uwTick += uwTickFreq;
-//  if (uwTick % 100 == 0)
-//  {
-//    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-//  }
+  if (uwTick % 100 == 0)
+  {
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+  }
 }
 
 void gpio_bit_write(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinState)

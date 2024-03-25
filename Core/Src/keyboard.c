@@ -7,6 +7,8 @@
 
 #define BUFFER_SIZE 8
 
+#define DEV 1
+
 /*      PB0  PB1  PB2  PB3  PB4  PB5  PB6  PB7  PB8  PB9  PB10  PB11  PB12  PB13  PB14  PB15  PA0  PA1
  * PA2
  * PA3
@@ -17,17 +19,6 @@
  * PA8
  * PA9
  */
-
-static uint8_t gs_phy_mx[MX_ROW_COUNT][MX_COL_COUNT] = {
-    {2, 3, 4, 5, 8, 9, 10, 81, 86, 0, 0, 0, 121, 11, 124, 116, 0, 0},
-    {1, 112, 113, 6, 7, 13, 119, 80, 85, 75, 76, 0, 120, 12, 0, 58, 0, 0},
-    {131, 132, 133, 50, 51, 56, 129, 79, 105, 89, 84, 0, 123, 55, 62, 0, 0, 0},
-    {46, 47, 48, 49, 52, 53, 54, 0, 100, 95, 90, 0, 43, 42, 0, 64, 0, 0},
-    {110, 45, 115, 35, 36, 117, 0, 83, 104, 99, 61, 0, 122, 41, 60, 0, 0, 0},
-    {31, 32, 33, 34, 37, 38, 39, 108, 103, 98, 93, 57, 29, 40, 59, 0, 0, 128},
-    {16, 30, 114, 21, 22, 28, 118, 107, 102, 97, 92, 44, 15, 27, 0, 0, 127, 0},
-    {17, 18, 19, 20, 23, 24, 25, 106, 101, 96, 91, 0, 14, 26, 125, 126, 0, 0}
-};
 
 /*
  * ` 1 2 3 4 5 6 7 8 9 0 - + null(14) bs(15)
@@ -43,6 +34,36 @@ static uint8_t gs_phy_mx[MX_ROW_COUNT][MX_COL_COUNT] = {
  * null(125-126) lwin(127) null(128) app(129)
  *
  */
+
+/*
+ * 实现fn按键功能，需要在检测到按下特殊组合后，发送特殊报文，
+ * 报文长度为 4字节，
+ * [0]:   02
+ * [1-3]: 十六进制数用二进制表示，1向左移动几位，触发的功能即为 Collection (Application) 中的第几个，自0始
+ *
+ * 需求: 音量-(f10 EA)
+ *      音量+(f11 E9)
+ *      静音(f12 E2)
+ *      SysReq(PrtSc 9A)
+ *      Scroll Lock(Ins 发送键码)
+ *      Pause(Del B1)
+ *      Page Up(uA 发送键码)
+ *      Page Down(dA 发送键码)
+ *      Home(lA 发送键码)
+ *      End(rA 发送键码)
+ */
+
+static uint8_t gs_phy_mx[MX_ROW_COUNT][MX_COL_COUNT] = {
+    {2, 3, 4, 5, 8, 9, 10, 81, 86, 0, 0, 0, 121, 11, 124, 116, 0, 0},
+    {1, 112, 113, 6, 7, 13, 119, 80, 85, 75, 76, 0, 120, 12, 0, 58, 0, 0},
+    {131, 132, 133, 50, 51, 56, 129, 79, 105, 89, 84, 0, 123, 55, 62, 0, 0, 0},
+    {46, 47, 48, 49, 52, 53, 54, 0, 100, 95, 90, 0, 43, 42, 0, 64, 0, 0},
+    {110, 45, 115, 35, 36, 117, 0, 83, 104, 99, 61, 0, 122, 41, 60, 0, 0, 0},
+    {31, 32, 33, 34, 37, 38, 39, 108, 103, 98, 93, 57, 29, 40, 59, 0, 0, 128},
+    {16, 30, 114, 21, 22, 28, 118, 107, 102, 97, 92, 44, 15, 27, 0, 0, 127, 0},
+    {17, 18, 19, 20, 23, 24, 25, 106, 101, 96, 91, 0, 14, 26, 125, 126, 0, 0}
+};
+
 static uint8_t gs_phy_to_keycode[144] = {
         0, 0x35, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25,
         0x26, 0x27, 0x2d, 0x2e, 0, 0x2a, 0x2b, 0x14, 0x1a,
@@ -96,9 +117,11 @@ void scan_keyboard(void)
 
   gpio_port_write(GPIOA, (gpio_output_port_get(GPIOA) | 0x03fc));
 
+  uint8_t buffer[4] = {0x02, 0x00, 0x40, 0x00};
+
   while (1)
   {
-#if 1
+#if DEV!=1
     uint32_t col_data = 0x00000000;
     gs_ghosting_flag = FALSE;
 
@@ -133,7 +156,15 @@ void scan_keyboard(void)
     memset(gs_temp_key_buffer.buffer, 0, BUFFER_SIZE);
     gs_temp_key_buffer.key_count = 0;
     gs_temp_key_buffer.normal_key_count = 0;
-#endif // 0
+#else  // DEV
+    buffer[2] = 0x40;
+    USBD_HID_SendReport(&hUsbDeviceFS, buffer, 4U);
+    delay_ms(500);
+
+    buffer[1] = 0x00;
+    USBD_HID_SendReport(&hUsbDeviceFS, buffer, 4U);
+    delay_ms(500);
+#endif // DEV
   }
 }
 
