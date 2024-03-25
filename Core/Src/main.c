@@ -89,6 +89,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+  debug_port_init(GPIO_PIN_14);
   scan_keyboard();
   /* USER CODE END 2 */
 

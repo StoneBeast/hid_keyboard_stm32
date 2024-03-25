@@ -18,7 +18,7 @@
  * PA9
  */
 
-static uint8_t gs_phy_mx[8][18] = {
+static uint8_t gs_phy_mx[MX_ROW_COUNT][MX_COL_COUNT] = {
     {2, 3, 4, 5, 8, 9, 10, 81, 86, 0, 0, 0, 121, 11, 124, 116, 0, 0},
     {1, 112, 113, 6, 7, 13, 119, 80, 85, 75, 76, 0, 120, 12, 0, 58, 0, 0},
     {131, 132, 133, 50, 51, 56, 129, 79, 105, 89, 84, 0, 123, 55, 62, 0, 0, 0},
@@ -72,17 +72,18 @@ typedef struct
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
 //  接收输入按键，用于验证合法性
-static uint8_t gs_mx_input_key_buffer[8][16] = {0};
+static uint8_t gs_mx_input_key_buffer[MX_ROW_COUNT][MX_COL_COUNT] = {0};
 static uint8_t gs_mx_input_key_buffer_count = 0;
 
-static uint16_t gs_input_key_buffer[16] = {0};
+static uint32_t gs_input_key_buffer[MX_ROW_COUNT] = {0};
 
 //  作为实际发送的key buffer的缓冲
 static buffer_t gs_temp_key_buffer = {.buffer = {0}, .key_count = 0, .normal_key_count = 0};
 
-static void handle_input_data(uint8_t row_inx, uint16_t gpio_input_data);
+static void handle_input_data(uint8_t row_inx, uint32_t gpio_input_data);
 static void handle_original_code(uint8_t row_code, uint8_t col_code);
 static bool is_ghosting(uint8_t row_code, uint8_t col_code);
+static uint32_t get_col_data(void);
 
 /*!
     \brief      scan the keyboard matrix
@@ -93,26 +94,25 @@ static bool is_ghosting(uint8_t row_code, uint8_t col_code);
 void scan_keyboard(void)
 {
 
-  gpio_port_write(GPIOA, (gpio_output_port_get(GPIOA) | 0x01fe));
+  gpio_port_write(GPIOA, (gpio_output_port_get(GPIOA) | 0x03fc));
 
   while (1)
   {
 #if 1
-    uint16_t col_data = 0x0000;
+    uint32_t col_data = 0x00000000;
     gs_ghosting_flag = FALSE;
 
     /*
         这里增加判断，当本轮扫描出现冲突时，停止扫描以提高效率，但是每次循环
         开始前，会重置标志位，所以不影响下一次扫描
     */
-//    for (uint8_t row_inx = 1; (row_inx < 9) && (gs_ghosting_flag==FALSE); row_inx++)
-    for (uint8_t row_inx = 1; row_inx < 9; row_inx++)
+    for (uint8_t row_inx = ROW_OFFSET; row_inx < (ROW_OFFSET+MX_ROW_COUNT); row_inx++)
     {
       //  逐行扫描
       gpio_bit_reset(GPIOA, GPIO_PIN(row_inx));
 
       //  获取当前的col输入
-      col_data = gpio_input_port_get(GPIOB);
+      col_data = get_col_data();
       //  处理col data
       handle_input_data(row_inx, col_data);
 
@@ -139,30 +139,31 @@ void scan_keyboard(void)
 
 /********************************************** 处理扫描的行数据 *************************************************/
 
-void handle_input_data(uint8_t row_inx, uint16_t gpio_input_data)
+void handle_input_data(uint8_t row_inx, uint32_t gpio_input_data)
 {
   gpio_input_data = ~gpio_input_data;
 
-  if (gpio_input_data != gs_input_key_buffer[row_inx-1])
+  if (gpio_input_data != gs_input_key_buffer[row_inx-ROW_OFFSET])
   {
     //  消抖
     delay_ms(50);
-    if ((gpio_input_data ^ gpio_input_port_get(GPIOB)) == 0xffff)
+    if ((gpio_input_data ^ get_col_data()) == 0xffffffff)
     {
-      gs_input_key_buffer[row_inx-1] = gpio_input_data;
+      gs_input_key_buffer[row_inx-ROW_OFFSET] = gpio_input_data;
     }
     else
     {
-      gpio_input_data = gs_input_key_buffer[row_inx-1];
+      gpio_input_data = gs_input_key_buffer[row_inx-ROW_OFFSET];
     }
   }
 
-  if (gpio_input_data == 0x0000)
+  if (gpio_input_data == 0xfffc0000)
   {
     return;
   }
 
-  for (uint8_t col_inx = 0; col_inx <= 15; col_inx++)
+  gpio_input_data &= 0x0003ffff;
+  for (uint8_t col_inx = 0; col_inx < MX_COL_COUNT; col_inx++)
   {
     if ((gpio_input_data & 0x0001) == 0x0001)
     {
@@ -181,23 +182,22 @@ void handle_input_data(uint8_t row_inx, uint16_t gpio_input_data)
 
 static void handle_original_code(uint8_t row_code, uint8_t col_code)
 {
-  if (is_ghosting(row_code-1, col_code) == FALSE)
+  if (is_ghosting(row_code-ROW_OFFSET, col_code) == FALSE)
   {
-    gs_mx_input_key_buffer[row_code-1][col_code] = 1;
+    gs_mx_input_key_buffer[row_code-ROW_OFFSET][col_code] = 1;
     gs_mx_input_key_buffer_count++;
 
-    if (row_code == 0x07)
+    /* 得出HID键码 */
+    uint8_t key_code = gs_phy_to_keycode[gs_phy_mx[row_code-ROW_OFFSET][col_code]];
+    uint8_t key_code_row = (key_code >> 4);
+    uint8_t key_code_col = (key_code & 0x0f);
+    if (key_code_row == 0x0e)
     {
-      gs_temp_key_buffer.buffer[0] |= (0x01 << col_code);
+      gs_temp_key_buffer.buffer[0] |= (0x01 << key_code_col);
     }
     else
     {
-      if (row_code == 0x08)
-      {
-        row_code = 0x00;
-      }
-
-      gs_temp_key_buffer.buffer[gs_temp_key_buffer.normal_key_count+2] = ((row_code << 4) | col_code);
+      gs_temp_key_buffer.buffer[gs_temp_key_buffer.normal_key_count+2] = key_code;
       gs_temp_key_buffer.normal_key_count += 1;
     }
     gs_temp_key_buffer.key_count++;
@@ -226,7 +226,7 @@ static bool is_ghosting(uint8_t row_code, uint8_t col_code)
   {
     if (gs_mx_input_key_buffer[i][col_code] == 1)
     {
-      for(uint8_t j = 0; j < 16; j++)
+      for(uint8_t j = 0; j < MX_COL_COUNT; j++)
       {
         if (j == col_code)
         {
@@ -256,4 +256,17 @@ static bool is_ghosting(uint8_t row_code, uint8_t col_code)
   }
 
   return FALSE;
+}
+
+/********************************************** 工具函数 **************************************************/
+
+static uint32_t get_col_data(void)
+{
+  uint32_t col_data = gpio_input_port_get(GPIOB);
+  col_data |= (((uint32_t)gpio_input_bit_get(GPIOA, GPIO_PIN(0))) << 16);
+  col_data |= (((uint32_t)gpio_input_bit_get(GPIOA, GPIO_PIN(1))) << 17);
+
+  gpio_bit_write(GPIOC, GPIO_PIN_14, gpio_input_bit_get(GPIOB, GPIO_PIN_12));
+
+  return col_data;
 }

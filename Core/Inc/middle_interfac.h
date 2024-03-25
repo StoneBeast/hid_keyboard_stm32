@@ -22,5 +22,6 @@ uint8_t* get_key_buffer();
 void delay_us(int us);
 
 void gpio_bit_write(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinState);
+uint8_t gpio_input_bit_get(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin);
 
 #endif //C8XX_MXCUBE_CLION_USBKEYBOARD_MIDDLE_INTERFAC_H

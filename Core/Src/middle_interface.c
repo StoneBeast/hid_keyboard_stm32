@@ -88,3 +88,9 @@ void gpio_bit_write(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinSta
   HAL_GPIO_WritePin(GPIOx, GPIO_Pin, PinState);
 }
 
+uint8_t gpio_input_bit_get(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin)
+{
+  GPIO_PinState pin_state =  HAL_GPIO_ReadPin(GPIOx, GPIO_Pin);
+
+  return pin_state==GPIO_PIN_SET? 0x01:0x00;
+}
