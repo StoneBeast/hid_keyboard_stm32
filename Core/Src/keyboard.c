@@ -164,7 +164,7 @@ void scan_keyboard(void)
     gs_temp_key_buffer.key_count = 0;
     gs_temp_key_buffer.normal_key_count = 0;
 #else  // DEV
-#if 0
+#if 1
     buffer[2] = 0x2b;
     USBD_HID_SendReport(&hUsbDeviceFS, buffer, 8u, 0x81);
     delay_ms(500);
@@ -175,11 +175,11 @@ void scan_keyboard(void)
 #else // 0
     buffer[0] = 0x02;
     buffer[1] = 0x01;
-    USBD_HID_SendReport(&hUsbDeviceFS, buffer, 4u, 0x82);
+    USBD_HID_SendReport(&hUsbDeviceFS, buffer, 4u, HID_EPIN_FN_ADDR);
     delay_ms(500);
 
     buffer[1] = 0x00;
-    USBD_HID_SendReport(&hUsbDeviceFS, buffer, 4u, 0x82);
+    USBD_HID_SendReport(&hUsbDeviceFS, buffer, 4u, HID_EPIN_FN_ADDR);
     delay_ms(500);
 #endif // 0
 #endif // DEV
