@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 
+// TODO: 需要改
 #define BUFFER_SIZE 8
 
 #define DEV 1
@@ -82,6 +83,7 @@ static uint8_t gs_phy_to_keycode[144] = {
 };
 
 static volatile bool gs_ghosting_flag = FALSE;
+static volatile bool gs_fn_key_flag = FALSE;
 
 typedef struct
 {
@@ -105,6 +107,7 @@ static void handle_input_data(uint8_t row_inx, uint32_t gpio_input_data);
 static void handle_original_code(uint8_t row_code, uint8_t col_code);
 static bool is_ghosting(uint8_t row_code, uint8_t col_code);
 static uint32_t get_col_data(void);
+static void handle_fn_key(void);
 
 /*!
     \brief      scan the keyboard matrix
@@ -117,13 +120,14 @@ void scan_keyboard(void)
 
   gpio_port_write(GPIOA, (gpio_output_port_get(GPIOA) | 0x03fc));
 
-  uint8_t buffer[4] = {0x02, 0x00, 0x40, 0x00};
+  uint8_t buffer[10] = {0};
 
   while (1)
   {
 #if DEV!=1
     uint32_t col_data = 0x00000000;
     gs_ghosting_flag = FALSE;
+    gs_fn_key_flag = FALSE;
 
     /*
         这里增加判断，当本轮扫描出现冲突时，停止扫描以提高效率，但是每次循环
@@ -142,6 +146,9 @@ void scan_keyboard(void)
       gpio_bit_set(GPIOA, GPIO_PIN(row_inx));
     }
 
+    //  处理fn按键
+    handle_fn_key();
+
     if ((gs_ghosting_flag == FALSE) && (buffer_cmp(gs_temp_key_buffer.buffer) == 0))
     {
       memcpy(get_key_buffer(), gs_temp_key_buffer.buffer, 8);
@@ -157,13 +164,24 @@ void scan_keyboard(void)
     gs_temp_key_buffer.key_count = 0;
     gs_temp_key_buffer.normal_key_count = 0;
 #else  // DEV
-    buffer[2] = 0x40;
-    USBD_HID_SendReport(&hUsbDeviceFS, buffer, 4U);
+#if 0
+    buffer[2] = 0x2b;
+    USBD_HID_SendReport(&hUsbDeviceFS, buffer, 8u, 0x81);
+    delay_ms(500);
+
+    buffer[2] = 0x00;
+    USBD_HID_SendReport(&hUsbDeviceFS, buffer, 8u, 0x81);
+    delay_ms(500);
+#else // 0
+    buffer[0] = 0x02;
+    buffer[1] = 0x01;
+    USBD_HID_SendReport(&hUsbDeviceFS, buffer, 4u, 0x82);
     delay_ms(500);
 
     buffer[1] = 0x00;
-    USBD_HID_SendReport(&hUsbDeviceFS, buffer, 4U);
+    USBD_HID_SendReport(&hUsbDeviceFS, buffer, 4u, 0x82);
     delay_ms(500);
+#endif // 0
 #endif // DEV
   }
 }
@@ -220,6 +238,10 @@ static void handle_original_code(uint8_t row_code, uint8_t col_code)
 
     /* 得出HID键码 */
     uint8_t key_code = gs_phy_to_keycode[gs_phy_mx[row_code-ROW_OFFSET][col_code]];
+    if (key_code == 0xff)
+    {
+      gs_fn_key_flag = TRUE;
+    }
     uint8_t key_code_row = (key_code >> 4);
     uint8_t key_code_col = (key_code & 0x0f);
     if (key_code_row == 0x0e)
@@ -300,4 +322,12 @@ static uint32_t get_col_data(void)
   gpio_bit_write(GPIOC, GPIO_PIN_14, gpio_input_bit_get(GPIOB, GPIO_PIN_12));
 
   return col_data;
+}
+
+static void handle_fn_key(void)
+{
+  if (gs_fn_key_flag)
+  {
+
+  }
 }
