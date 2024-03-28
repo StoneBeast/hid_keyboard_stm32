@@ -3,12 +3,11 @@
 #include "middle_interfac.h"
 #include "debug_tools.h"
 
-#include <stdint.h>
-
-// TODO: 需要改
 #define BUFFER_SIZE 8
+#define EP_ADDR_NOM 0x81
+#define EP_ADDR_FN 0x82
 
-#define DEV 1
+#define DEV 0
 
 /*      PB0  PB1  PB2  PB3  PB4  PB5  PB6  PB7  PB8  PB9  PB10  PB11  PB12  PB13  PB14  PB15  PA0  PA1
  * PA2
@@ -82,6 +81,19 @@ static uint8_t gs_phy_to_keycode[144] = {
         0, 0, 0, 0, 0, 0, 0
 };
 
+static uint8_t fn_key[FN_KEY_COUNT] = {
+KEY_F10   ,
+KEY_F11   ,
+KEY_F12   ,
+KEY_PRT_SC,
+KEY_DEL   ,
+KEY_INS   ,
+KEY_UA    ,
+KEY_DA    ,
+KEY_LA    ,
+KEY_RA    ,
+};
+
 static volatile bool gs_ghosting_flag = FALSE;
 static volatile bool gs_fn_key_flag = FALSE;
 
@@ -121,14 +133,10 @@ static void handle_fn_key(void);
 */
 void scan_keyboard(void)
 {
-
     gpio_port_write(GPIOA, (gpio_output_port_get(GPIOA) | 0x03fc));
-
-    uint8_t buffer[10] = {0};
 
     while (1)
     {
-#if DEV != 1
         uint32_t col_data = 0x00000000;
         gs_ghosting_flag = FALSE;
         gs_fn_key_flag = FALSE;
@@ -156,7 +164,14 @@ void scan_keyboard(void)
         if ((gs_ghosting_flag == FALSE) && (buffer_cmp(gs_temp_key_buffer.buffer) == 0))
         {
             memcpy(get_key_buffer(), gs_temp_key_buffer.buffer, 8);
-            USBD_HID_SendReport(&hUsbDeviceFS, get_key_buffer(), 8U);
+            if ((gs_fn_key_flag && (gs_temp_key_buffer.key_count == 2)))
+            {
+                USBD_HID_SendReport(&hUsbDeviceFS, get_key_buffer(), 4U, EP_ADDR_FN);
+            }
+            else
+            {
+                USBD_HID_SendReport(&hUsbDeviceFS, get_key_buffer(), 8U, EP_ADDR_NOM);
+            }
         }
 
 
@@ -167,26 +182,7 @@ void scan_keyboard(void)
         memset(gs_temp_key_buffer.buffer, 0, BUFFER_SIZE);
         gs_temp_key_buffer.key_count = 0;
         gs_temp_key_buffer.normal_key_count = 0;
-#else  // DEV
-#if 1
-        buffer[2] = 0x2b;
-        USBD_HID_SendReport(&hUsbDeviceFS, buffer, 8u, 0x81);
-        delay_ms(500);
 
-        buffer[2] = 0x00;
-        USBD_HID_SendReport(&hUsbDeviceFS, buffer, 8u, 0x81);
-        delay_ms(500);
-#else // 0
-        buffer[0] = 0x02;
-        buffer[1] = 0x01;
-        USBD_HID_SendReport(&hUsbDeviceFS, buffer, 4u, HID_EPIN_FN_ADDR);
-        delay_ms(500);
-
-        buffer[1] = 0x00;
-        USBD_HID_SendReport(&hUsbDeviceFS, buffer, 4u, HID_EPIN_FN_ADDR);
-        delay_ms(500);
-#endif // 0
-#endif // DEV
     }
 }
 
@@ -329,6 +325,69 @@ static void handle_fn_key(void)
 {
     if (gs_fn_key_flag)
     {
+        uint8_t tp = 0;
+        uint8_t mp = 8;
+        uint8_t temp_key = 0xfe;
+        uint8_t temp_key_p = 11;
 
+        for (uint8_t i = 0; i < FN_KEY_COUNT; ++i)
+        {
+            tp = find_buffer(gs_temp_key_buffer.buffer, fn_key[i]);
+            if ((tp < mp) && (tp > 1))
+            {
+                mp = tp;
+                temp_key = fn_key[i];
+                temp_key_p = i;
+            }
+        }
+
+        if ((temp_key != 0xfe) && (temp_key_p != 11))
+        {
+            memset(gs_temp_key_buffer.buffer, 0, BUFFER_SIZE);
+
+            //  发送特殊报文
+            if (temp_key_p < 5)
+            {
+                gs_temp_key_buffer.key_count = 2;
+                gs_temp_key_buffer.normal_key_count = 2;
+                gs_temp_key_buffer.buffer[0] = 0x02;
+                gs_temp_key_buffer.buffer[1] = (1 << temp_key_p);
+            }
+            //  发送普通键码
+            else
+            {
+                gs_temp_key_buffer.key_count = 1;
+                gs_temp_key_buffer.normal_key_count = 1;
+                gs_temp_key_buffer.buffer[0] = 0x00;
+                gs_temp_key_buffer.buffer[1] = 0x00;
+                switch (fn_key[temp_key_p])
+                {
+                    case KEY_INS:
+                        gs_temp_key_buffer.buffer[2] = 0x47;
+                        break;
+                    case KEY_UA:
+                        gs_temp_key_buffer.buffer[2] = 0x4b;
+                        break;
+                    case KEY_DA:
+                        gs_temp_key_buffer.buffer[2] = 0x4e;
+                        break;
+                    case KEY_LA:
+                        gs_temp_key_buffer.buffer[2] = 0x4a;
+                        break;
+                    case KEY_RA:
+                        gs_temp_key_buffer.buffer[2] = 0x4d;
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        else
+        {
+            gs_temp_key_buffer.buffer[find_buffer(gs_temp_key_buffer.buffer, 0xff)] = 0x00;
+            gs_temp_key_buffer.key_count -= 1;
+            gs_temp_key_buffer.normal_key_count -= 1;
+            gs_fn_key_flag = FALSE;
+        }
     }
 }

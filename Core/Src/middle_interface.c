@@ -94,3 +94,15 @@ uint8_t gpio_input_bit_get(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin)
 
   return pin_state==GPIO_PIN_SET? 0x01:0x00;
 }
+
+uint8_t find_buffer(const uint8_t *buffer, uint8_t key_code)
+{
+    for (uint8_t i=2; i<8; i++)
+    {
+        if (buffer[i] == key_code)
+        {
+            return i;
+        }
+    }
+    return 0;
+}
