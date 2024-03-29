@@ -46,6 +46,7 @@ EndBSPDependencies */
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_hid.h"
 #include "usbd_ctlreq.h"
+#include "keyboard.h"
 
 
 /** @addtogroup STM32_USB_DEVICE_LIBRARY
@@ -108,6 +109,10 @@ static uint8_t  *USBD_HID_GetOtherSpeedCfgDesc(uint16_t *length);
 static uint8_t  *USBD_HID_GetDeviceQualifierDesc(uint16_t *length);
 
 static uint8_t  USBD_HID_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum);
+
+static uint8_t  USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum);
+
+static uint8_t USBD_HID_EP0_RxReady(USBD_HandleTypeDef *pdev);
 /**
   * @}
   */
@@ -122,9 +127,9 @@ USBD_ClassTypeDef  USBD_HID =
   USBD_HID_DeInit,
   USBD_HID_Setup,
   NULL, /*EP0_TxSent*/
-  NULL, /*EP0_RxReady*/
+  USBD_HID_EP0_RxReady, /*EP0_RxReady*/
   USBD_HID_DataIn, /*DataIn*/
-  NULL, /*DataOut*/
+  USBD_HID_DataOut, /*DataOut*/
   NULL, /*SOF */
   NULL,
   NULL,
@@ -437,6 +442,11 @@ static uint8_t  USBD_HID_Setup(USBD_HandleTypeDef *pdev,
           USBD_CtlSendData(pdev, (uint8_t *)(void *)&hhid->IdleState, 1U);
           break;
 
+        case HID_REQ_SET_REPORT:
+          hhid->IsReportAvailable = 1U;
+          USBD_CtlPrepareRx(pdev, hhid->Report_buf, req->wLength);
+          break;
+
         default:
           USBD_CtlError(pdev, req);
           ret = USBD_FAIL;
@@ -649,6 +659,29 @@ static uint8_t  *USBD_HID_GetDeviceQualifierDesc(uint16_t *length)
   return USBD_HID_DeviceQualifierDesc;
 }
 
+static uint8_t  USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
+{
+
+    USBD_HID_HandleTypeDef     *hhid = (USBD_HID_HandleTypeDef *)pdev->pClassData;
+
+    USBD_LL_PrepareReceive(pdev, epnum, hhid->Report_buf,
+                           USBD_CUSTOMHID_OUTREPORT_BUF_SIZE);
+
+    return USBD_OK;
+}
+
+static uint8_t USBD_HID_EP0_RxReady(USBD_HandleTypeDef *pdev)
+{
+    USBD_HID_HandleTypeDef     *hhid = (USBD_HID_HandleTypeDef *)pdev->pClassData;
+
+    if (hhid->IsReportAvailable == 1U)
+    {
+        led_handler(hhid->Report_buf[0]);
+        hhid->IsReportAvailable = 0U;
+    }
+
+    return USBD_OK;
+}
 /**
   * @}
   */

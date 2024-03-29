@@ -1,7 +1,6 @@
 #include "keyboard.h"
 #include "usbd_hid.h"
 #include "middle_interfac.h"
-#include "debug_tools.h"
 
 #define BUFFER_SIZE 8
 #define EP_ADDR_NOM 0x81
@@ -316,8 +315,6 @@ static uint32_t get_col_data(void)
     col_data |= (((uint32_t) gpio_input_bit_get(GPIOA, GPIO_PIN(0))) << 16);
     col_data |= (((uint32_t) gpio_input_bit_get(GPIOA, GPIO_PIN(1))) << 17);
 
-    gpio_bit_write(GPIOC, GPIO_PIN_14, gpio_input_bit_get(GPIOB, GPIO_PIN_12));
-
     return col_data;
 }
 
@@ -390,4 +387,14 @@ static void handle_fn_key(void)
             gs_fn_key_flag = FALSE;
         }
     }
+}
+
+void led_handler(uint8_t data_fragment)
+{
+    /*
+     * PA10 scrlk
+     * PF6  numlk
+     * PF7  caplk
+     */
+    handle_led_gpio(data_fragment);
 }

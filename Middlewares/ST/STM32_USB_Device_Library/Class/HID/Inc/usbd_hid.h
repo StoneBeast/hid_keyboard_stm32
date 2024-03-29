@@ -50,6 +50,8 @@ extern "C" {
 #define HID_KEYBOARD_REPORT_DESC_SIZE    64U
 #define HID_FN_REPORT_DESC_SIZE    135U
 
+#define USBD_CUSTOMHID_OUTREPORT_BUF_SIZE 0x02
+
 #define HID_DESCRIPTOR_TYPE           0x21U
 #define HID_REPORT_DESC               0x22U
 
@@ -87,9 +89,11 @@ HID_StateTypeDef;
 
 typedef struct
 {
+  uint8_t              Report_buf[USBD_CUSTOMHID_OUTREPORT_BUF_SIZE];
   uint32_t             Protocol;
   uint32_t             IdleState;
   uint32_t             AltSetting;
+  uint32_t             IsReportAvailable;
   HID_StateTypeDef     state;
 }
 USBD_HID_HandleTypeDef;

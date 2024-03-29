@@ -7,6 +7,7 @@
 
 #include "stm32f1xx.h"
 #include "stm32f1xx_hal_gpio.h"
+#include "keyboard.h"
 
 #define GPIO_PIN(x) ((uint32_t)((uint32_t)0x01U<<(x)))
 
@@ -25,5 +26,6 @@ void gpio_bit_write(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinSta
 uint8_t gpio_input_bit_get(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin);
 
 uint8_t find_buffer(const uint8_t *buffer, uint8_t key_code);
+void handle_led_gpio(uint8_t status_data);
 
 #endif //C8XX_MXCUBE_CLION_USBKEYBOARD_MIDDLE_INTERFAC_H

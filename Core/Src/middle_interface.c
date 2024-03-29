@@ -77,10 +77,10 @@ uint8_t* get_key_buffer()
 void HAL_IncTick(void)
 {
   uwTick += uwTickFreq;
-  if (uwTick % 100 == 0)
-  {
-    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-  }
+//  if (uwTick % 100 == 0)
+//  {
+//    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+//  }
 }
 
 void gpio_bit_write(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinState)
@@ -105,4 +105,11 @@ uint8_t find_buffer(const uint8_t *buffer, uint8_t key_code)
         }
     }
     return 0;
+}
+
+void handle_led_gpio(uint8_t status_data)
+{
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, (GPIO_PinState)(0x01 & ((status_data & LED_NUM_LOCK_MASK) >> LED_NUM_LOCK_POS)));
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, (GPIO_PinState)(0x01 & ((status_data & LED_CAP_LOCK_MASK) >> LED_CAP_LOCK_POS)));
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, (GPIO_PinState)(0x01 & ((status_data & LED_SCR_LOCK_MASK) >> LED_SCR_LOCK_POS)));
 }
