@@ -129,7 +129,7 @@ USBD_ClassTypeDef  USBD_HID =
   NULL, /*EP0_TxSent*/
   USBD_HID_EP0_RxReady, /*EP0_RxReady*/
   USBD_HID_DataIn, /*DataIn*/
-  USBD_HID_DataOut, /*DataOut*/
+  NULL, /*DataOut*/
   NULL, /*SOF */
   NULL,
   NULL,
@@ -286,7 +286,7 @@ __ALIGN_BEGIN static uint8_t HID_Keyboard_ReportDesc[HID_KEYBOARD_REPORT_DESC_SI
         0xc0                           //               END_COLLECTION
 };
 
-__ALIGN_BEGIN static uint8_t HID_Fn_ReportDesc[135]  __ALIGN_END =
+__ALIGN_BEGIN static uint8_t HID_Fn_ReportDesc[HID_FN_REPORT_DESC_SIZE]  __ALIGN_END =
 {
         0x06, 0x0C, 0x00,   // Usage Page (Consumer)
         0x09, 0x01,             // Usage (Consumer Control)
@@ -657,17 +657,6 @@ static uint8_t  *USBD_HID_GetDeviceQualifierDesc(uint16_t *length)
 {
   *length = sizeof(USBD_HID_DeviceQualifierDesc);
   return USBD_HID_DeviceQualifierDesc;
-}
-
-static uint8_t  USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
-{
-
-    USBD_HID_HandleTypeDef     *hhid = (USBD_HID_HandleTypeDef *)pdev->pClassData;
-
-    USBD_LL_PrepareReceive(pdev, epnum, hhid->Report_buf,
-                           USBD_CUSTOMHID_OUTREPORT_BUF_SIZE);
-
-    return USBD_OK;
 }
 
 static uint8_t USBD_HID_EP0_RxReady(USBD_HandleTypeDef *pdev)

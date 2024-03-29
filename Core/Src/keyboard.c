@@ -20,26 +20,6 @@
  */
 
 /*
- * ` 1 2 3 4 5 6 7 8 9 0 - + null(14) bs(15)
- * tab q w e r t y u i o p [ ] \(29)
- * cl a s d f g h j k l ; '(41) null(42) enter(43)
- * lsh(44) null(45) z(46) x c v b n m , . /(55) null(56) rsh(57)
- * lct fn lalt sp ralt(62) null(63) rct (64)
- * null(65-74)
- * insert(75) del null(77-78) lA(79) null(80-82)
- * uA(83) dA null(85-88) rA(89) NL 7 4 1(93) null(94) / 8
- * 5 2 0 * 9 6 3 . - +(106) null(107) bs(108) null(109)
- * esc null(111) f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 f12 prtsc(124)
- * null(125-126) lwin(127) null(128) app(129)
- *
- */
-
-/*
- * 实现fn按键功能，需要在检测到按下特殊组合后，发送特殊报文，
- * 报文长度为 4字节，
- * [0]:   02
- * [1-3]: 十六进制数用二进制表示，1向左移动几位，触发的功能即为 Collection (Application) 中的第几个，自0始
- *
  * 需求: 音量-(f10 EA)
  *      音量+(f11 E9)
  *      静音(f12 E2)
